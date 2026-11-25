@@ -529,14 +529,27 @@ jobs:
           pin() {
             dir="$1"; sha="$2"
             echo "== pin $dir -> $sha"
-            echo "shallow: $(git -C "$dir" rev-parse --is-shallow-repository)"
             git -C "$dir" fetch --depth=1 origin "$sha" || git -C "$dir" fetch origin "$sha"
-            git -C "$dir" checkout -q "$sha"
+            git -C "$dir" reset --hard -q "$sha"
             echo "now at: $(git -C "$dir" log -1 --format='%h %s')"
           }
           pin common 247a2472a11cfb427869fe10a6e4de43a7207a2e
           pin msm-kernel dc39dd4a7f38a91203991d690ab547cc5c015024
           pin . 5443d5561aa9da15eacaaebd8d6435b259363565
+          echo "== re-apply post-sync build patches"
+          for dir in common msm-kernel; do
+            if [ -e "$dir/BUILD.bazel" ]; then
+              sed -i '/^[[:space:]]*"protected_exports_list"[[:space:]]*:[[:space:]]*"android\/abi_gki_protected_exports_aarch64",$/d' "$dir/BUILD.bazel"
+            fi
+            rm -f "$dir/android/abi_gki_protected_exports_"* 2>/dev/null || true
+          done
+          if grep -q 'check_defconfig' common/build.config.gki; then
+            sed -i 's/check_defconfig//' common/build.config.gki
+          fi
+          if grep -q 'check_defconfig = None,' build/kernel/kleaf/common_kernels.bzl; then
+            sed -i 's/check_defconfig = None,/check_defconfig = "disabled",/' build/kernel/kleaf/common_kernels.bzl
+            sed -i 's/if check_defconfig == None:/if False:  # check_defconfig == None:/' build/kernel/kleaf/common_kernels.bzl
+          fi
           grep -E '^(VERSION|PATCHLEVEL|SUBLEVEL) ' common/Makefile
 
       - name: Kernel Version Handling
