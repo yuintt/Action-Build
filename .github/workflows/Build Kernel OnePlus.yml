@@ -522,6 +522,23 @@ jobs:
             sed -i 's/if check_defconfig == None:/if False:  # check_defconfig == None:/' kernel_platform/build/kernel/kleaf/common_kernels.bzl
           fi
 
+      - name: Pin Kernel Source to PKR110_16.0.3.500
+        run: |
+          set -e
+          cd kernel_workspace/kernel_platform
+          pin() {
+            dir="$1"; sha="$2"
+            echo "== pin $dir -> $sha"
+            echo "shallow: $(git -C "$dir" rev-parse --is-shallow-repository)"
+            git -C "$dir" fetch --depth=1 origin "$sha" || git -C "$dir" fetch origin "$sha"
+            git -C "$dir" checkout -q "$sha"
+            echo "now at: $(git -C "$dir" log -1 --format='%h %s')"
+          }
+          pin common 247a2472a11cfb427869fe10a6e4de43a7207a2e
+          pin msm-kernel dc39dd4a7f38a91203991d690ab547cc5c015024
+          pin . 5443d5561aa9da15eacaaebd8d6435b259363565
+          grep -E '^(VERSION|PATCHLEVEL|SUBLEVEL) ' common/Makefile
+
       - name: Kernel Version Handling
         run: |
           cd kernel_workspace/kernel_platform
